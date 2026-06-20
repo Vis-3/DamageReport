@@ -23,3 +23,7 @@ damage_report/dbt_packages/
 
 # BLS CPI raw download — re-downloadable, not source code
 ingestion/cu.data.1.AllItems*
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/

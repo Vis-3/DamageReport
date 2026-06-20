@@ -421,6 +421,56 @@ This separates states that were always high-risk (Florida, Texas) from states wh
 
 ---
 
+## Section 11: CI/CD, Docs, and Visualizations
+
+### Q: What does your GitHub Actions workflow do and why is it structured as two jobs?
+
+**Answer:**
+Two jobs: `dbt-test` and `dbt-docs`.
+
+`dbt-test` runs on every push and every PR — it runs `dbt seed`, `dbt run`, and `dbt test`. This is the quality gate: no code merges without a green pipeline.
+
+`dbt-docs` only runs on pushes to main, and only if `dbt-test` passes. It regenerates the docs and commits them back to the repo. Publishing docs from a broken pipeline would mean the published lineage doesn't match the actual code.
+
+The `[skip ci]` tag in the docs commit message prevents an infinite loop — without it, the docs commit would trigger another CI run which would commit docs again endlessly.
+
+---
+
+### Q: Why does dbt docs not work on GitHub Pages static hosting?
+
+**Answer:**
+dbt's `index.html` is a single-page app that fetches `manifest.json` and `catalog.json` via XHR requests at runtime. GitHub Pages serves static files, but the XHR requests fail because:
+1. The files are there but dbt appends a cache-busting query string (`?cb=randomnumber`) that doesn't match the actual filenames
+2. GitHub Pages doesn't support the dynamic path resolution dbt expects
+
+The correct production approach is to serve dbt docs via a web server (`dbt docs serve`). For a portfolio, the lineage screenshot + instructions to run locally is the honest, standard approach.
+
+---
+
+### Q: What are your key analytical findings and their limitations?
+
+**Answer — three findings, each with a caveat:**
+
+**Finding 1:** Storm events are being reported more frequently — ~48K/year in 1996 to ~70K/year in 2024.
+**Caveat:** Part of this increase is better reporting infrastructure, not more actual storms. The trend is real but overstated.
+
+**Finding 2:** Hurricanes are the most destructive event type per occurrence at $25.5M average damage per event. WIND events occur 60× more frequently but cause only $70K per event.
+**Caveat:** Damage figures are CPI-adjusted but not exposure-normalized. Higher dollar damage partly reflects more buildings in hurricane paths, not just more intense storms.
+
+**Finding 3:** Geographic risk is shifting. California surged in the 2010s (wildfires), Louisiana in the 2020s (Ida). Hawaii jumped 70 percentile points in the 2020s (Maui wildfires).
+**Caveat:** The 2020s decade is only 5 years complete — figures will change as the decade finishes.
+
+---
+
+### Q: Why did you annotate Katrina on the damage per event chart instead of removing it?
+
+**Answer:**
+Removing it would be dishonest — a trend line that hides a $161.7B event is misleading. Labeling it as an outlier is both more honest and more compelling as a data story: it shows the analyst understands the data well enough to distinguish a structural trend from a single catastrophic event.
+
+The annotation makes the chart's message clearer: "severity per event is noisy with no clear upward trend, except for major hurricane years which are outliers, not a trend."
+
+---
+
 ## Quick-Fire Questions
 
 | Question | One-line answer |
@@ -454,3 +504,168 @@ This separates states that were always high-risk (Florida, Texas) from states wh
 | Why does mart_surprise_states ref mart_geographic_risk? | Reuses already-aggregated and ranked data rather than re-aggregating 1.8M rows — single source of truth for state/decade risk metrics |
 | What does the 2005 damage spike represent? | Hurricane Katrina — $161.7B in 2024 dollars, a statistical outlier that should be called out explicitly in analysis |
 | Which event type is most destructive per occurrence? | Hurricane at $25.5M avg damage per event — 10,590 events vs WIND's 636,791 events at $70K avg |
+| What belongs in dbt docs vs README? | dbt docs = model/column level detail for pipeline contributors; README = project narrative and findings for external audience |
+| Why does dbt docs need a local server? | index.html fetches manifest.json and catalog.json via XHR — static hosting breaks because the JSON files 404 on GitHub Pages |
+| What does the CI workflow do on a PR vs a push to main? | PR: dbt run + test only. Push to main: run + test, then publish docs if tests pass. Never publish from a broken pipeline. |
+| Why [skip ci] in the docs commit message? | Prevents infinite loop — the docs commit would trigger another CI run which would commit docs again |
+| What does the monthly GitHub Actions schedule do? | Runs dbt seed + run + test to pick up new NOAA data published each month |
+| What story does the choropleth tell across decades? | 2000s: Gulf Coast dominates (Katrina). 2010s: California surges (wildfires), NJ lights up (Sandy). 2020s: Louisiana spikes (Ida). Risk is shifting, not just growing. |
+| Why annotate Katrina on the damage per event chart? | Hiding the outlier would be dishonest. Labeling it shows the spike is one event, not a trend — and is more compelling as a data story. |
+
+---
+
+## Section 12: Data Science Extension
+
+### Q: What statistical test did you use to assess trend significance and why?
+
+**Answer:**
+Mann-Kendall non-parametric trend test. It tests whether there is a monotonic trend in a time series — consistently going in one direction, not necessarily a straight line.
+
+I chose it over linear regression for three reasons:
+1. It makes no normality assumption — storm damage is heavily right-skewed
+2. It's robust to outliers — a single Katrina year doesn't invalidate the test
+3. It measures monotonic trend, which is the right question: "is it consistently going up?" not "does a straight line fit well?"
+
+**Results:** Frequency shows a statistically significant increasing trend (p<0.0001, Tau=+0.655, Sen's slope +813 events/year). Severity per event shows no significant trend (p=0.134, Tau=-0.195). This confirms we're reporting more storms but individual storms are not becoming more destructive on average.
+
+---
+
+### Q: What is Sen's slope and why is it better than OLS slope for this data?
+
+**Answer:**
+Sen's slope is the median of all pairwise slopes between observations. It's robust to outliers — one extreme value (Katrina 2005) shifts OLS slope significantly but barely moves the median slope.
+
+For storm damage data with a known extreme outlier, Sen's slope gives a more representative estimate of the underlying rate of change.
+
+---
+
+### Q: How does Isolation Forest work and why did you use it for anomaly detection?
+
+**Answer:**
+Isolation Forest randomly partitions the feature space by selecting a random feature and a random split point. Anomalous points are isolated with fewer splits — they're rare and far from the bulk of the data, so they appear close to the root of the tree. The anomaly score is the average depth across all trees — lower depth = more anomalous.
+
+I chose it over z-score because:
+- Anomalies in multi-dimensional space aren't captured by single-column z-scores
+- A year can be anomalous on the combination of frequency + severity + deaths without being an outlier on any single dimension
+- It's unsupervised — no labels needed
+
+**Results:** Three years flagged — 2005 (Katrina, extreme severity), 2011 (peak frequency + high deaths from Joplin tornado season), 2025 (anomalously low damage per event due to partial year data).
+
+---
+
+### Q: Why did anomaly detection flag 2025 as anomalous even though nothing extreme happened?
+
+**Answer:**
+2025 has the second highest event count but the lowest average damage per event in the dataset ($64K). That combination — many events, minimal damage — is statistically unusual relative to the 1996-2024 distribution. It's anomalous in the opposite direction from 2005.
+
+This illustrates a key property of anomaly detection: it flags deviation from the norm in any direction, not just extremes. 2025 is a data completeness artifact — NOAA is still filing damage reports for recent events. The model correctly identified structural unusualness; interpreting *why* requires domain knowledge.
+
+---
+
+### Q: What is class imbalance and how did you handle it in the fatality prediction model?
+
+**Answer:**
+0.60% of 1.72M events resulted in fatalities — 164 non-fatal events for every 1 fatal event. A naive model predicting "non-fatal" for every event would be 99.4% accurate but completely useless.
+
+I handled it with `class_weight='balanced'`, which scales the loss penalty inversely proportional to class frequency. The model is penalised much more heavily for misclassifying a fatal event than a non-fatal one.
+
+I chose this over SMOTE because SMOTE would generate ~280K synthetic fatal events on a 1.7M row dataset — memory-heavy, slow, and synthetic data that may not reflect real storm physics. `class_weight='balanced'` is mathematically equivalent to oversampling for logistic regression with no synthetic data.
+
+---
+
+### Q: Why did you use a temporal train/test split instead of random split?
+
+**Answer:**
+A random split would let the model train on 2020 data and test on 2015 data. In production, a model only ever sees historical data — it cannot use future information to predict the past. A random split creates data leakage and produces optimistically biased evaluation metrics.
+
+Temporal split (train 1996-2010, test 2011-2025) reflects the real deployment scenario: train on everything you know, predict on what comes next.
+
+---
+
+### Q: Why is accuracy the wrong metric for this problem?
+
+**Answer:**
+With 0.60% positive rate, a model predicting "non-fatal" for every event achieves 99.4% accuracy. It has learned nothing about fatality. Accuracy is misleading for imbalanced classification because the majority class dominates the metric.
+
+Better metrics:
+- **PR-AUC** — area under the precision-recall curve. Focuses only on the positive class. Harder to game with a majority-class predictor. Primary metric.
+- **ROC-AUC** — ability to rank a fatal event above a non-fatal one. Good general measure, slightly optimistic with severe imbalance.
+- **Recall at threshold** — operational metric: what fraction of fatal events does the model catch at a chosen operating threshold?
+
+---
+
+### Q: Why did logistic regression outperform gradient boosting on PR-AUC after adding lag features?
+
+**Answer:**
+Lag features (prior-year state deaths, event count, damage) have a relatively linear relationship with fatality risk — regions under sustained storm stress show predictably elevated risk the following year. Logistic regression exploits linear relationships directly, so PR-AUC jumped from 0.069 to 0.135.
+
+Gradient boosting already approximated this signal non-linearly through interactions between event type, region, and decade. Adding explicit lag features changed the feature space without providing genuinely new information for GB, slightly reducing PR-AUC.
+
+This is the key lesson: **feature engineering mattered more than model complexity.** The simpler model won after proper feature engineering.
+
+---
+
+### Q: What is the difference between GB built-in feature importance and SHAP?
+
+**Answer:**
+- **Built-in importance** measures how often a feature is used to split trees and how much it reduces impurity in aggregate. It's biased towards high-frequency, high-cardinality features — HAIL has 636K events, so it gets split on constantly and appears most important.
+- **SHAP (Shapley values)** measures the marginal contribution of each feature to each individual prediction. It's theoretically grounded in game theory. SHAP importance = mean absolute SHAP value across all predictions.
+
+In this project, built-in importance ranked `lag_event_count` and `lag_damage` as top features. SHAP confirmed only `lag_deaths` carries genuine marginal predictive value. Built-in overcounted the other two because they're continuous with many possible split points.
+
+Rule: **use SHAP for trustworthy feature importance. Use built-in importance only as a fast approximation.**
+
+---
+
+### Q: What is threshold optimisation and why did you do it?
+
+**Answer:**
+Classification models output a probability. The threshold is the cutoff above which you predict positive (fatal). Default is 0.50, but this is arbitrary.
+
+For safety-critical use cases, the cost of a false negative (missing a deadly event) far exceeds the cost of a false positive (unnecessary warning). You lower the threshold so the model flags more events as potentially fatal, accepting more false positives to catch more true positives.
+
+I optimised for maximum recall subject to a precision floor of 5% — below 5% precision, every warning is noise regardless of recall.
+
+**Results:**
+- LR: threshold=0.82, recall=0.46
+- GB: threshold=0.02, recall=0.51
+
+GB needed threshold=0.02 because its raw probabilities are calibrated towards the majority class — common with imbalanced data even after class weighting. Explicit threshold tuning corrected for this.
+
+---
+
+### Q: What did SHAP reveal about fatality drivers that built-in importance didn't?
+
+**Answer:**
+SHAP dot plot shows direction and magnitude per prediction:
+- **HEAT** — high feature value (it IS a heat event) pushes predictions strongly positive (+2 to +4 SHAP). Heat kills disproportionately relative to economic damage.
+- **HAIL** — high feature value (it IS hail) pushes predictions negative. Being hail decreases fatality risk. More importantly, NOT being hail is a positive signal — it's a proxy for "something more dangerous than hail."
+- **lag_deaths** — prior year deaths in a state increases current fatality predictions. Regions under sustained storm stress show elevated risk.
+- **region_WEST** — elevated positive SHAP values. Wildfire signal — western events are more often fatal relative to damage.
+
+The HAIL finding was counterintuitive — SHAP revealed the model uses it as a negative indicator, not a positive one.
+
+---
+
+## Quick-Fire DS Questions
+
+| Question | One-line answer |
+|---|---|
+| Why Mann-Kendall not linear regression? | No normality assumption, robust to outliers like Katrina, tests monotonic trend not linear fit |
+| What does Tau=+0.655 mean? | Strong positive monotonic relationship between time and event count — 0.655 out of 1.0 |
+| What does p=0.134 on severity mean? | Above 0.05 threshold — cannot reject null hypothesis of no trend. Severity is flat. |
+| What is Sen's slope? | Median of all pairwise slopes — robust to outliers unlike OLS slope |
+| Why did you log-transform before Isolation Forest? | Right-skewed damage data compresses normal years and stretches the tail — log pulls the tail in |
+| Why StandardScaler before Isolation Forest? | Without scaling, damage ($billions) dominates the anomaly score over event count (thousands) |
+| Why fit scaler on train only? | Fitting on full dataset leaks test set distribution into training — scaler would learn future data |
+| Why is 2025 flagged as anomalous? | Highest event count but lowest damage per event — opposite direction anomaly from 2005, caused by partial year data |
+| What does contamination=0.10 mean? | Tell the model to expect ~10% of data to be anomalous — controls how many points get flagged |
+| Why class_weight='balanced' not SMOTE? | SMOTE generates 280K synthetic rows on a 1.7M row dataset — slow and synthetic. Balanced weights are mathematically equivalent for LR. |
+| Why temporal split not random? | Random split leaks future data into training — model sees 2020 data when predicting 2015 |
+| Why PR-AUC over ROC-AUC for imbalanced data? | ROC-AUC includes true negative rate which is trivially high — PR-AUC focuses only on positive class performance |
+| What is threshold optimisation? | Moving the classification cutoff below 0.5 to increase recall at the cost of precision for safety-critical use cases |
+| Why did LR PR-AUC improve with lag features? | Lag features have a linear relationship with risk — LR exploits linear signal directly |
+| Why did GB PR-AUC drop with lag features? | GB already captured this signal non-linearly — lag features changed the feature space without new information |
+| What is the HAIL SHAP finding? | HAIL is a negative predictor — its absence is a stronger positive signal than its presence. The model uses "not hail" as a proxy for something more dangerous. |
+| Why is built-in GB importance unreliable? | Biased towards high-cardinality continuous features — HAIL has 636K events so trees split on it constantly regardless of real predictive value |
+| What does a ROC-AUC of 0.84 mean in plain English? | The model ranks a fatal event above a non-fatal one 84% of the time — significantly better than random (50%) |
