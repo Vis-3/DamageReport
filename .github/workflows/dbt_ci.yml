@@ -1,0 +1,136 @@
+name: dbt CI + Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Monthly refresh: 1st of every month at 6am UTC
+    # Picks up new NOAA data published the prior month
+    - cron: '0 6 1 * *'
+
+jobs:
+  dbt-test:
+    name: dbt run + test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dbt-bigquery
+        run: pip install dbt-bigquery==1.11.2
+
+      - name: Write GCP keyfile from secret
+        # Writes the JSON secret to a temp file so dbt profiles.yml can reference it
+        run: echo '${{ secrets.GCP_KEYFILE_JSON }}' > /tmp/keyfile.json
+
+      - name: Write dbt profiles.yml
+        # profiles.yml is gitignored (contains local paths) so we generate it in CI
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          damage_report:
+            outputs:
+              dev:
+                type: bigquery
+                method: service-account
+                project: damagereport-499916
+                dataset: dbt_staging
+                keyfile: /tmp/keyfile.json
+                location: US
+                threads: 4
+                job_execution_timeout_seconds: 300
+                job_retries: 1
+                priority: interactive
+            target: dev
+          EOF
+
+      - name: dbt deps
+        working-directory: damage_report
+        run: dbt deps
+
+      - name: dbt seed
+        working-directory: damage_report
+        run: dbt seed
+
+      - name: dbt run
+        working-directory: damage_report
+        run: dbt run
+
+      - name: dbt test
+        working-directory: damage_report
+        run: dbt test
+
+  dbt-docs:
+    name: Publish dbt docs to GitHub Pages
+    runs-on: ubuntu-latest
+    # Only publish docs on push to main, not on PRs or schedule
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: dbt-test  # only publish if tests pass
+
+    permissions:
+      contents: write  # needed to push docs/ to main branch
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dbt-bigquery
+        run: pip install dbt-bigquery==1.11.2
+
+      - name: Write GCP keyfile from secret
+        run: echo '${{ secrets.GCP_KEYFILE_JSON }}' > /tmp/keyfile.json
+
+      - name: Write dbt profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          damage_report:
+            outputs:
+              dev:
+                type: bigquery
+                method: service-account
+                project: damagereport-499916
+                dataset: dbt_staging
+                keyfile: /tmp/keyfile.json
+                location: US
+                threads: 4
+                job_execution_timeout_seconds: 300
+                job_retries: 1
+                priority: interactive
+            target: dev
+          EOF
+
+      - name: dbt deps
+        working-directory: damage_report
+        run: dbt deps
+
+      - name: dbt docs generate
+        working-directory: damage_report
+        run: dbt docs generate
+
+      - name: Copy docs to /docs folder
+        run: |
+          cp damage_report/target/manifest.json docs/
+          cp damage_report/target/catalog.json docs/
+          cp damage_report/target/index.html docs/
+
+      - name: Commit and push updated docs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git diff --staged --quiet || git commit -m "chore: refresh dbt docs [skip ci]"
+          git push
