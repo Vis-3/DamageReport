@@ -8,57 +8,62 @@ A production-grade data engineering pipeline over 1.8M NOAA storm events (1996�
 
 ## The Story
 
-### Act 1 — More Storms, But Is That Real?
+### Act 1: More Storms, But Is That Real?
 
 Reported storm events have grown from ~48,000 per year in 1996 to ~70,000 per year in 2024. At first glance, that looks alarming. But this trend has a confound: NOAA's reporting infrastructure — storm spotters, Doppler radar coverage, digital reporting systems — expanded significantly over this period. Some of the increase is real. Some of it is us getting better at counting.
 
 This is why pre-1996 data is excluded from trend analysis entirely. The 1996 standardization of 48 event categories was the first point where the data is structurally comparable year-over-year.
 
-![Event frequency over time](docs/screenshots/chart1_event_frequency.png)
-*[Interactive version](docs/charts/chart1_event_frequency.html)*
+<img width="1918" height="907" alt="image" src="https://github.com/user-attachments/assets/f379d8e1-d2fd-4b85-b7ca-84ca0b148345" />
+
 
 ---
 
-### Act 2 — Are Storms Getting Worse Per Event?
+### Act 2: Are Storms Getting Worse Per Event?
 
 Frequency going up doesn't mean severity is going up. To answer that, we look at average damage per event — normalized to 2024 dollars so we're comparing apples to apples across decades.
 
 The answer is: noisy. No clean upward trend in severity per event — except for one unmistakable spike. **2005: $3M average damage per event, 4–10× a typical year.** That's Hurricane Katrina, which accounted for a disproportionate share of that year's total damage. The chart labels it explicitly rather than hiding it — it's an outlier, not a trend.
 
-![Damage per event over time](docs/screenshots/chart2_damage_per_event.png)
-*[Interactive version](docs/charts/chart2_damage_per_event.html)*
+<img width="1918" height="912" alt="image" src="https://github.com/user-attachments/assets/f3b9b42f-8742-4c5d-ac5c-33e36840e21b" />
 
 ---
 
-### Act 3 — Which Event Types Cost the Most?
+### Act 3: Which Event Types Cost the Most?
 
 Not all storms are equal. When we rank event types by average damage per occurrence — not total damage, which favors frequent events — the picture shifts dramatically.
 
 **Hurricanes: $25.5M average damage per event.** Fire: $5.7M. Flood: $1.5M. Wind events — the most common event type at 636,000 occurrences — cause just $70K per event. Total damage and per-event damage tell completely different stories about which event types to prioritize.
 
-![Economic impact by event type](docs/screenshots/chart3_economic_impact.png)
-*[Interactive version](docs/charts/chart3_economic_impact.html)*
+<img width="1918" height="911" alt="image" src="https://github.com/user-attachments/assets/36cba388-a309-4c69-9e33-442bfe41bc6c" />
 
 ---
 
-### Act 4 — Where Is It Hitting?
+### Act 4: Where Is It Hitting?
 
-Storm damage isn't evenly distributed. The animated choropleth below shows total damage by state across three decades — and the map changes.
+Storm damage isn't evenly distributed. The animated choropleth below shows total damage by state across three decades and the map changes.
 
 **2000s:** Texas and Louisiana dominate in dark red. That's Katrina (2005) and a historically active Gulf Coast hurricane season. California is notable but not dominant.
 
+<img width="1918" height="886" alt="image" src="https://github.com/user-attachments/assets/f6d504a7-e420-43c5-aea8-cf23b0291883" />
+
+
 **2010s:** California surges to the top — wildfires. Texas stays dark. New Jersey lights up (Sandy, 2012). The Northeast is now on the map in a way it wasn't before.
+
+<img width="1912" height="786" alt="image" src="https://github.com/user-attachments/assets/d91742b7-ccc1-41db-b0fe-b280aabbb751" />
+
 
 **2020s (partial):** Louisiana spikes to darkest red — Hurricane Ida (2021). Texas fades relative to prior decades. California lightens, though the decade is only half complete.
 
-Risk is not static. It's shifting.
 
-![Geographic risk by decade](docs/screenshots/chart4_geographic_risk.png)
-*[Interactive version — use the slider to move across decades](docs/charts/chart4_geographic_risk.html)*
+<img width="1918" height="788" alt="image" src="https://github.com/user-attachments/assets/8c312458-e41c-4b11-9933-c1eb7fa0296c" />
+
+
+
 
 ---
 
-### Act 5 — The Surprise States
+### Act 5: The Surprise States
 
 The final question: which states saw the biggest unexpected risk jumps? Not the states that were always high-risk, but the ones that moved.
 
@@ -70,8 +75,7 @@ The final question: which states saw the biggest unexpected risk jumps? Not the 
 
 These aren't flukes. They're signals that the geographic distribution of climate risk is shifting faster than traditional risk models account for.
 
-![Surprise states](docs/screenshots/chart5_surprise_states.png)
-*[Interactive version](docs/charts/chart5_surprise_states.html)*
+<img width="1918" height="906" alt="image" src="https://github.com/user-attachments/assets/e856a640-051c-4c9b-970b-ee80ff1eef29" />
 
 ---
 
@@ -108,7 +112,7 @@ BLS CPI Data ─────────────┘    (explicit schema,    
                               (decade-over-decade risk shifts)
 ```
 
-![dbt Lineage Graph](docs/lineage.png)
+<img width="1596" height="656" alt="image" src="https://github.com/user-attachments/assets/ff047ab3-4349-4a7d-ad6c-89150e2b89d4" />
 
 ---
 
