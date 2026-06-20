@@ -1,0 +1,34 @@
+name: 'damage_report'
+version: '1.0.0'
+profile: 'damage_report'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  damage_report:
+    staging:
+      # Views: no storage cost, always reads fresh from raw layer
+      # Staging models are cheap transforms — no reason to materialize
+      +materialized: view
+      +schema: dbt_staging
+
+    intermediate:
+      # Views: enrichment logic that marts build on top of
+      # If intermediate models get slow, we can promote to table later
+      +materialized: view
+      +schema: dbt_staging
+
+    marts:
+      # Tables: materialized so analysts and BI tools can query fast
+      # without re-running the full transform chain on every query
+      +materialized: table
+      +schema: dbt_marts

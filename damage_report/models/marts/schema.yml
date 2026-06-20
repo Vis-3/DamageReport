@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: mart_severity_trends
+    description: >
+      Event frequency and severity by year and event type group.
+      Grain: one row per event_year + event_type_group.
+      Excludes pre-1996 and 2026 partial year.
+      Use total_damage_2024_usd for cross-year comparisons (inflation-adjusted).
+
+    columns:
+      - name: event_year
+        tests:
+          - not_null
+      - name: event_type_group
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['TORNADO','FLOOD','HURRICANE','WINTER_STORM','HEAT',
+                       'DROUGHT','FIRE','HAIL','WIND','MARINE','OTHER']
+      - name: event_count
+        tests:
+          - not_null
+      - name: avg_damage_per_event_2024_usd
+        description: >
+          Key severity metric. Rising value = storms getting more destructive per occurrence.
+          Flat value with rising event_count = more storms, same severity per storm.
+
+  - name: mart_geographic_risk
+    description: >
+      Damage, deaths, and event counts by state and decade.
+      Grain: one row per state + decade.
+      Excludes marine/territory events (NULL state).
+      damage_percentile_in_decade ranks states within each decade (0-100).
+
+    columns:
+      - name: state
+        tests:
+          - not_null
+      - name: decade
+        tests:
+          - not_null
+      - name: damage_percentile_in_decade
+        description: >
+          Percentile rank of this state's total damage within its decade.
+          100 = highest damage state that decade. Used in mart_surprise_states
+          to measure decade-over-decade risk position changes.
+
+  - name: mart_economic_impact
+    description: >
+      Total and per-event economic impact by event type group.
+      Grain: one row per event_type_group (10 rows total).
+      rank_by_damage_per_event = 1 means most destructive per occurrence.
+      Use this mart to compare event types fairly regardless of frequency.
+
+    columns:
+      - name: event_type_group
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values: ['TORNADO','FLOOD','HURRICANE','WINTER_STORM','HEAT',
+                       'DROUGHT','FIRE','HAIL','WIND','MARINE','OTHER']
+      - name: avg_damage_per_event_2024_usd
+        tests:
+          - not_null
+
+  - name: mart_surprise_states
+    description: >
+      Decade-over-decade risk position changes by state.
+      Grain: one row per state + decade (excludes each state's first decade,
+      which has no prior decade to compare against).
+      is_surprise_state = TRUE when percentile rank jumped > 20 points.
+
+    columns:
+      - name: state
+        tests:
+          - not_null
+      - name: decade
+        tests:
+          - not_null
+      - name: percentile_rank_change
+        description: >
+          How much this state's damage percentile rank changed vs the prior decade.
+          Positive = moved up in risk rankings. Negative = became relatively safer.
+      - name: is_surprise_state
+        tests:
+          - not_null

@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: raw_noaa
+    database: damagereport-499916
+    schema: raw_noaa
+    description: >
+      Raw NOAA Storm Events data ingested directly from NOAA FTP without transformation.
+      DAMAGE_PROPERTY and DAMAGE_CROPS are stored as strings (e.g. "10.00K", "2.5M")
+      exactly as NOAA provides them. Parsing happens in stg_storm_events.
+
+    tables:
+      - name: storm_events
+        description: >
+          1.8M+ storm event records from 1996-2026. Partitioned by YEAR,
+          clustered by STATE then EVENT_TYPE.
+        columns:
+          - name: EVENT_ID
+            description: NOAA event identifier. Not unique across years — combine with YEAR for a unique key.
+          - name: DAMAGE_PROPERTY
+            description: Property damage as NOAA string (e.g. "10.00K", "2.5M"). Parsed in staging.
+          - name: DAMAGE_CROPS
+            description: Crop damage as NOAA string. Parsed in staging.
+
+      - name: cpi_deflator
+        description: >
+          BLS CPI annual averages 1996-2025. Used in int_events_enriched to convert
+          historical damage figures to 2024 dollars.
+        columns:
+          - name: year
+            description: Calendar year.
+          - name: deflator
+            description: CPI_2024 / CPI_year. Multiply historical damage by this to get 2024 dollars.

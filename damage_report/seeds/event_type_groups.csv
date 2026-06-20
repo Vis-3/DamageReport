@@ -1,0 +1,62 @@
+event_type_raw,event_type_group
+Tornado,TORNADO
+Funnel Cloud,TORNADO
+Flash Flood,FLOOD
+Flood,FLOOD
+Coastal Flood,FLOOD
+Lakeshore Flood,FLOOD
+Flash Flood/Landslide,FLOOD
+Flood/Landslide,FLOOD
+Debris Flow,FLOOD
+Hurricane,HURRICANE
+Hurricane (Typhoon),HURRICANE
+Tropical Storm,HURRICANE
+Tropical Depression,HURRICANE
+Typhoon,HURRICANE
+Winter Storm,WINTER_STORM
+Blizzard,WINTER_STORM
+Ice Storm,WINTER_STORM
+Heavy Snow,WINTER_STORM
+Winter Weather,WINTER_STORM
+Sleet,WINTER_STORM
+Freezing Rain,WINTER_STORM
+Cold/Wind Chill,WINTER_STORM
+Extreme Cold/Wind Chill,WINTER_STORM
+Frost/Freeze,WINTER_STORM
+Lake-Effect Snow,WINTER_STORM
+Excessive Heat,HEAT
+Heat,HEAT
+Drought,DROUGHT
+Wildfire,FIRE
+Hail,HAIL
+Thunderstorm Wind,WIND
+Marine Thunderstorm Wind,WIND
+Lightning,WIND
+High Wind,WIND
+Strong Wind,WIND
+Marine High Wind,WIND
+Marine Strong Wind,WIND
+Waterspout,MARINE
+Marine Hail,MARINE
+Rip Current,MARINE
+High Surf,MARINE
+Astronomical Low Tide,MARINE
+Seiche,MARINE
+Tsunami,MARINE
+Dust Storm,OTHER
+Dust Devil,OTHER
+Dense Fog,OTHER
+Freezing Fog,OTHER
+Avalanche,OTHER
+Heavy Rain,FLOOD
+Storm Surge/Tide,FLOOD
+Marine Lightning,WIND
+Marine Dense Fog,MARINE
+Marine Tropical Storm,HURRICANE
+Marine Tropical Depression,HURRICANE
+Marine Hurricane/Typhoon,HURRICANE
+Dense Smoke,OTHER
+Sneakerwave,MARINE
+Volcanic Ash,OTHER
+Volcanic Ashfall,OTHER
+Northern Lights,OTHER

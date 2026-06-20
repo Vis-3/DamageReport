@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# GCP credentials — never commit service account keys
+*.json
+gcp_secret*/
+
+# dbt compiled output and logs — generated files, not source
+damage_report/target/
+damage_report/logs/
+logs/
+
+# dbt packages — installed via dbt deps, not committed
+damage_report/dbt_packages/
+
+# BLS CPI raw download — re-downloadable, not source code
+ingestion/cu.data.1.AllItems*

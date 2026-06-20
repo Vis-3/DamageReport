@@ -1,0 +1,108 @@
+version: 2
+
+models:
+  - name: stg_storm_events
+    description: >
+      Cleaned and typed NOAA storm events. One row per storm event, 1996-2026.
+      Damage strings parsed to FLOAT64 via parse_damage_string macro.
+      NULL damage means not recorded; 0 means confirmed zero damage.
+      is_pre_standardization flags pre-1996 records which use an incomparable schema.
+
+    columns:
+      - name: event_id
+        description: Surrogate key — NOAA EVENT_ID concatenated with YEAR. Unique across all records.
+        tests:
+          - unique
+          - not_null
+
+      - name: event_year
+        description: Year the event occurred. Used as partition key and join key to CPI deflator.
+        tests:
+          - not_null
+          # Every event year must have a matching CPI record so inflation
+          # adjustment in int_events_enriched never silently drops rows
+          # 2026 events have no CPI yet (BLS publishes annual avg after year end)
+          # where clause excludes current partial year from this test
+          - relationships:
+              to: ref('stg_cpi_deflator')
+              field: cpi_year
+              where: "event_year < 2026"
+
+      - name: event_type_raw
+        description: >
+          Raw NOAA event type. One of 48 standardized categories introduced in 1996.
+          Joined to event_type_groups seed in int_event_type_groups to map to 10 groups.
+        tests:
+          - not_null
+          - accepted_values:
+              values: [
+                'Tornado', 'Funnel Cloud',
+                'Flash Flood', 'Flood', 'Coastal Flood', 'Lakeshore Flood',
+                'Flash Flood/Landslide', 'Flood/Landslide', 'Debris Flow',
+                'Hurricane', 'Hurricane (Typhoon)', 'Tropical Storm',
+                'Tropical Depression', 'Typhoon',
+                'Winter Storm', 'Blizzard', 'Ice Storm', 'Heavy Snow',
+                'Winter Weather', 'Sleet', 'Freezing Rain', 'Cold/Wind Chill',
+                'Extreme Cold/Wind Chill', 'Frost/Freeze', 'Lake-Effect Snow',
+                'Excessive Heat', 'Heat',
+                'Drought',
+                'Wildfire',
+                'Hail',
+                'Thunderstorm Wind', 'Marine Thunderstorm Wind', 'Lightning',
+                'High Wind', 'Strong Wind', 'Marine High Wind', 'Marine Strong Wind',
+                'Waterspout', 'Marine Hail', 'Rip Current', 'High Surf',
+                'Astronomical Low Tide', 'Seiche', 'Tsunami',
+                'Dust Storm', 'Dust Devil', 'Dense Fog', 'Freezing Fog', 'Avalanche',
+                'Heavy Rain', 'Storm Surge/Tide',
+                'Marine Lightning', 'Marine Dense Fog',
+                'Marine Tropical Storm', 'Marine Tropical Depression', 'Marine Hurricane/Typhoon',
+                'Dense Smoke', 'Sneakerwave', 'Volcanic Ash', 'Volcanic Ashfall', 'Northern Lights'
+              ]
+
+      - name: state
+        description: >
+          State name in title case (e.g. "Texas" not "TEXAS").
+          NULL for marine zone and territory events (e.g. Guam Coastal Waters)
+          where NOAA does not assign a US state.
+
+      - name: property_damage_usd
+        description: >
+          Property damage in USD, parsed from NOAA string format.
+          NULL = not recorded. 0 = confirmed zero damage.
+          Not inflation-adjusted — adjustment happens in int_events_enriched.
+
+      - name: crop_damage_usd
+        description: >
+          Crop damage in USD, parsed from NOAA string format.
+          NULL = not recorded. 0 = confirmed zero damage.
+
+      - name: deaths_direct
+        description: Direct fatalities. Coalesced to 0 if NULL in raw.
+        tests:
+          - not_null
+
+      - name: is_pre_standardization
+        description: >
+          TRUE for records before 1996. Pre-1996 data uses a different event type
+          schema and incomplete reporting infrastructure. Exclude from trend analysis.
+        tests:
+          - not_null
+
+  - name: stg_cpi_deflator
+    description: >
+      BLS CPI annual averages 1996-2025, base year 2024.
+      One row per year. Used in int_events_enriched to inflation-adjust damage figures.
+
+    columns:
+      - name: cpi_year
+        description: Calendar year.
+        tests:
+          - unique
+          - not_null
+
+      - name: cpi_deflator
+        description: >
+          CPI_2024 / CPI_year. Multiply historical damage by this to get 2024 dollars.
+          1996 deflator ≈ 2.0 means $1 in 1996 = $2 in 2024.
+        tests:
+          - not_null
