@@ -4,6 +4,8 @@
 
 A production-grade data engineering pipeline over 1.8M NOAA storm events (1996–2026), answering three questions: **is extreme weather getting worse, where is it hitting hardest, and what does it cost?**
 
+> **Also see:** [Data Science Extension](notebooks/README.md) — Mann-Kendall trend tests, Isolation Forest anomaly detection, and fatality prediction with cost-sensitive learning built on top of this pipeline.
+
 ---
 
 ## The Story

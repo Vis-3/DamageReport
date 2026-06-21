@@ -52,10 +52,13 @@ renamed as (
         {{ parse_damage_string('DAMAGE_PROPERTY') }} as property_damage_usd,
         {{ parse_damage_string('DAMAGE_CROPS') }}    as crop_damage_usd,
 
-        -- Tornado-specific fields (NULL for non-tornado events)
-        TOR_F_SCALE     as tornado_f_scale,
-        CAST(TOR_LENGTH AS FLOAT64) as tornado_length_miles,
-        CAST(TOR_WIDTH  AS FLOAT64) as tornado_width_yards,
+        -- Storm intensity fields
+        TOR_F_SCALE                  as tornado_f_scale,
+        CAST(TOR_LENGTH AS FLOAT64)  as tornado_length_miles,
+        CAST(TOR_WIDTH  AS FLOAT64)  as tornado_width_yards,
+        CAST(MAGNITUDE  AS FLOAT64)  as magnitude,
+        MAGNITUDE_TYPE               as magnitude_type,
+        CAST(CATEGORY   AS FLOAT64)  as hurricane_category,
 
         -- Narratives — useful for dbt docs and exploratory analysis
         EPISODE_NARRATIVE  as episode_narrative,

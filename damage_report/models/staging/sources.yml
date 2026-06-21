@@ -22,6 +22,18 @@ sources:
           - name: DAMAGE_CROPS
             description: Crop damage as NOAA string. Parsed in staging.
 
+      - name: county_population
+        description: >
+          Census 2020 county-level population density computed from Gazetteer land area
+          and CC-EST2020-ALLDATA population estimates. Ingested via ingestion/ingest_census.py.
+        columns:
+          - name: state_abbrev
+            description: Two-letter state abbreviation.
+          - name: county_name
+            description: County name lowercased, suffix stripped (e.g. "autauga").
+          - name: population_density
+            description: People per square mile (2020 Census estimate).
+
       - name: cpi_deflator
         description: >
           BLS CPI annual averages 1996-2025. Used in int_events_enriched to convert

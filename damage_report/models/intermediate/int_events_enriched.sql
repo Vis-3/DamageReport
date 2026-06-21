@@ -30,6 +30,10 @@ regions as (
     select * from {{ ref('state_regions') }}
 ),
 
+population as (
+    select * from {{ ref('stg_county_population') }}
+),
+
 enriched as (
     select
         -- All event fields from upstream
@@ -56,6 +60,9 @@ enriched as (
         events.tornado_f_scale,
         events.tornado_length_miles,
         events.tornado_width_yards,
+        events.magnitude,
+        events.magnitude_type,
+        events.hurricane_category,
         events.episode_narrative,
         events.event_narrative,
         events.is_pre_standardization,
@@ -88,7 +95,12 @@ enriched as (
 
         -- Keep deflator for auditability — marts can show what factor was applied
         cpi.cpi_deflator,
-        cpi.cpi_annual_avg
+        cpi.cpi_annual_avg,
+
+        -- Population density: people per sq mile at the county level (Census 2020)
+        -- NULL for marine zones, territories, or counties not matched in Census data
+        population.population_density,
+        population.population_2020
 
     from events
     -- LEFT JOIN CPI: 2026 events have no CPI row yet, keep them with NULL adjusted damage
@@ -97,6 +109,14 @@ enriched as (
     -- LEFT JOIN regions: marine/territory events have NULL state, keep them with NULL region
     left join regions
         on events.state = regions.state
+    -- LEFT JOIN population: county zone name normalized to match Census county_name
+    -- CZ_TYPE='C' are county zones; 'Z' are forecast zones (no county match expected)
+    left join population
+        on regions.state_abbrev = population.state_abbrev
+        and LOWER(REGEXP_REPLACE(
+                TRIM(events.county_zone_name),
+                r'\s+(County|Parish|Borough|Census Area|Municipality)$', ''
+            )) = population.county_name
 )
 
 select * from enriched

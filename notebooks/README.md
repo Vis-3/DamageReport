@@ -1,6 +1,6 @@
 # The Damage Report — Data Science Extension
 
-A machine learning layer built on top of the [DE pipeline](../README.md), answering three questions the SQL marts couldn't: **is the frequency trend statistically significant, which years were structurally anomalous, and can we predict whether a storm will kill someone?**
+A machine learning layer built on top of the [DE pipeline](../README.md), answering four questions the SQL marts couldn't: **is the frequency trend statistically significant, which years were structurally anomalous, can we predict whether a storm will kill someone, and how bad will it be?**
 
 ---
 
@@ -20,8 +20,12 @@ BigQuery mart tables
         │                     Isolation Forest · log transform · multi-dimensional scoring
         ▼
 03_fatality_prediction.ipynb  Binary classification — will this event cause deaths?
-                              feature engineering · class imbalance · threshold optimisation
-                              cost-sensitive learning · SHAP · model serialisation
+        │                     feature engineering · class imbalance · threshold optimisation
+        │                     cost-sensitive learning · SHAP · model serialisation
+        ▼
+04_advanced_prediction.ipynb  How bad? Damage tier + hierarchical fatality severity
+                              storm intensity · Census population density · two-stage pipeline
+                              HistGradientBoosting · NaN-native · CRITICAL recall optimisation
 ```
 
 ---
@@ -142,7 +146,54 @@ No single model dominates all metrics. Deployment context determines the right c
 
 ---
 
-## Analytical Limitations
+### Act 6 — How Bad Will It Be? Damage Tiers and Fatality Severity
+
+Notebook 03 answered *fatal or not*. This notebook answers *how bad* — adding storm intensity (F-scale, magnitude) and Census 2020 population density from a new ingestion pipeline, then predicting across two dimensions: economic damage tier and human fatality severity.
+
+**Damage tier classification (4-class):**
+
+| Tier | Threshold | Macro F1 |
+|---|---|---|
+| LOW | < $10K | — |
+| MEDIUM | $10K – $1M | — |
+| HIGH | $1M – $100M | — |
+| CATASTROPHIC | > $100M | — |
+| **Overall** | | **0.28** |
+
+Thresholds are domain-defined (FEMA-aligned), not quantile-based — defensible in any interview. `fscale_num` and `decade` are the top SHAP features, confirming that tornado intensity and the long-term trend in storm severity drive damage tier.
+
+**Hierarchical fatality severity pipeline:**
+
+MASS events (10+ deaths) total 148 across 30 years — too rare for supervised learning. The solution: decompose into two binary problems.
+
+```
+10,000 storm events
+    │
+    ▼ Stage 1: NONE vs ANY_DEATH   PR-AUC 0.154
+   88 flagged  (99.1% discarded without analyst review)
+    │
+    ▼ Stage 2: MINOR vs CRITICAL   PR-AUC 0.061
+   12 CRITICAL alerts prioritised  (3+ deaths, multi-agency response)
+   76 MINOR events reviewed second
+```
+
+**Key technical decision — NaN ≠ zero for magnitude:** Filling missing magnitude with 0 told the model a heat wave had zero wind speed. `HistGradientBoostingClassifier` handles NaN via native separate decision paths, improving Stage 1 PR-AUC from 0.138 to 0.154. The fix: never impute a structural absence as a zero measurement.
+
+**SHAP confirms new features carry signal:** magnitude ranks #1 for Stage 1 fatality prediction (SHAP 1.34), population_density ranks #3 — the Census ingestion was justified. The same features that drove the most SHAP importance, however, did not improve PR-AUC above notebook 03's 0.174, because magnitude is absent for 48.5% of events (heat, flood, drought — the most dangerous types). The new features enable richer outputs, not a better binary classifier.
+
+---
+
+## Analytical Limitations (Notebooks 01–03)
+
+- **Features are pre-event only.** Damage amount is excluded to avoid data leakage — it's measured at the same time as deaths, not before. A real deployment system would only have event type, location, and timing.
+- **Temporal split means test set includes climate-shifted years.** The model trained on 1996-2015 patterns may underfit recent wildfire-driven fatalities in the West.
+- **Lag features assume state-level patterns persist year-over-year.** A state that had a catastrophic year followed by policy changes (better warning systems, evacuation routes) would have misleading lag features.
+- **0.61% positive rate limits recall ceiling.** With ~11K fatal events in 1.79M, even a perfect model would struggle to push recall above ~0.65 without unacceptable false positive rates at meaningful precision levels.
+- **CRITICAL recall of 54% at Stage 2** is achieved on Stage 1 positives only — the end-to-end pipeline catches roughly 20% of all true CRITICAL events (Stage 1 recall × Stage 2 recall).
+
+---
+
+## Analytical Limitations (Notebooks 01–03)
 
 - **Features are pre-event only.** Damage amount is excluded to avoid data leakage — it's measured at the same time as deaths, not before. A real deployment system would only have event type, location, and timing.
 - **Temporal split means 2011-2025 test set includes climate-shifted years.** The model trained on 1996-2010 patterns may underfit recent wildfire-driven fatalities in the West.
@@ -164,7 +215,7 @@ uv sync
 jupyter notebook notebooks/
 ```
 
-Run notebooks in order: `00_eda` → `01_trend` → `02_anomaly` → `03_fatality`.
+Run notebooks in order: `00_eda` → `01_trend` → `02_anomaly` → `03_fatality` → `04_advanced_prediction`.
 
 Each notebook connects to BigQuery directly — set your keyfile path in Cell 1.
 
@@ -174,4 +225,4 @@ Serialised models are saved to `models/` after running notebook 03.
 
 ## Resume Bullet
 
-> Extended The Damage Report with a machine learning layer: Mann-Kendall trend tests (frequency p<0.0001, severity p=0.13), Isolation Forest anomaly detection on 30 years of storm data, and a fatality prediction classifier (GB, PR-AUC=0.174) using cost-sensitive learning — event-type danger multipliers as instance-level sample weights, probability calibration, XGBoost scale_pos_weight, and targeted SMOTE on dangerous event types only.
+> Extended The Damage Report with a machine learning layer: Mann-Kendall trend tests (frequency p<0.0001, severity p=0.13), Isolation Forest anomaly detection on 30 years of storm data, fatality prediction (GB, PR-AUC=0.174) using cost-sensitive learning and event-type danger multipliers, and a hierarchical severity pipeline — Stage 1 filters 10,000 events to 88 flagged (PR-AUC 0.154), Stage 2 prioritises 12 CRITICAL multi-fatality alerts (54% recall) — adding Census population density and NOAA storm intensity features validated by SHAP.

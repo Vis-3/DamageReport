@@ -27,3 +27,7 @@ ingestion/cu.data.1.AllItems*
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 notebooks/.ipynb_checkpoints/
+
+# Census source files — re-downloadable, not source code
+ingestion/CC-EST2020-ALLDATA.csv
+ingestion/2020_Gaz_counties_national.zip
