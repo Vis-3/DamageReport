@@ -213,7 +213,3 @@ dbt docs serve  # opens at http://localhost:8080
 ```
 
 ---
-
-## Resume Bullet
-
-> Built The Damage Report, a climate risk analytics pipeline over 1.8M NOAA storm events — dbt Core on BigQuery with Jinja macros for damage string parsing, seed-driven event type classification, CPI inflation adjustment joining BLS data, 24 dbt tests (built-in + relationship tests), and GitHub Actions CI/CD for monthly data refresh.
